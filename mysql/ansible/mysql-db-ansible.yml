@@ -1,0 +1,75 @@
+---
+#This is a non-modular basic build for mysql on Ubuntu Linux.
+- name: MySQL Base Build 
+  hosts: all
+  tasks:
+    #apt is for ubuntu, yum for Amazon Linux distros.
+    - name: apt-get update
+      apt:
+        update_cache: yes
+
+    - name: Installing Mysql + Dependencies
+      package:
+       #item points to the loop list below.
+       name: "{{item}}"
+       state: present
+       update_cache: yes
+      loop:
+        - mysql-server
+        - mysql-client 
+        - python3-mysqldb
+        - libmysqlclient-dev
+
+    - name: Start and Enable Mysql Service
+      service:
+        name: mysql
+        state: started
+        enabled: yes
+
+    #While it may be sufficient for your testing platform to have plain text creds,
+    #best practice is to use an ansible vault file. See notes at the bottom for more.
+    - name: Create Mysql User
+      mysql_user:
+        name: "{{ mysql_db_user }}"
+        password: "{{ mysql_db_password }}"
+        priv: '*.*:ALL'
+        host: '%'
+        state: present
+
+    #In a modular config the variables are in a vars/main.yml file.
+    #Otherwise the variables will be listed at the top.
+    - name: Create Database
+      mysql_db:
+        name: "{{ mysql_db_name }}"
+        state: present
+    
+    - name: Enable Remote Login
+      lineinfile:
+         path: /etc/mysql/mysql.conf.d/mysqld.cnf
+         regexp: '^bind-address'
+         line: 'bind-address = 0.0.0.0'
+         backup: yes
+      notify:
+         - Restart mysql
+
+    #In a modular config the handlers are in a handlers/main.yml.
+    - name: Restart mysql
+      service:
+        name: mysql
+        state: restarted
+
+    #[IMPORTANT] If you want to use ansible-vault for secrets,
+    #make sure to reference it in your playbook file (if your build is modular)
+    #and use --ask-vault-pass when you execute that playbook.
+
+    #An ansible vault can be created using the command,
+    #ansible-vault create <name>.yml
+    #It will ask for a password and confirmation.
+    #It will then open vim and allow you to enter key pairs.
+    #Other useful commands below:
+    #ansible-vault view <name>.yml
+    #ansible-vault edit <name>.yml
+    #ansible-vault decrypt <name>.yml (useful if you want to use nano)
+    #ansible-vault encrypt <name>.yml
+
+
