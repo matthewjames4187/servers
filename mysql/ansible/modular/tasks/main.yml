@@ -1,5 +1,5 @@
 ---
-# tasks file for roles/eval2
+# tasks file for ansible role mysql database deployment.
 
     - name: apt-get update
       apt:
